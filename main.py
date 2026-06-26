@@ -70,6 +70,10 @@ class Play(MediaAction):
         if status == None:
             if self.current_status == None:
                 self.current_status = "Playing"
+            idle_image = self.get_idle_icon()
+            if idle_image is not None:
+                self.set_media(image=idle_image, size=size, valign=valign)
+                return
             image = Image.open(icon_path)
             enhancer = ImageEnhance.Brightness(image)
             image = enhancer.enhance(0.6)
@@ -145,6 +149,10 @@ class Pause(MediaAction):
         if status == None:
             if self.current_status == None:
                 self.current_status = "Playing"
+            idle_image = self.get_idle_icon()
+            if idle_image is not None:
+                self.set_media(image=idle_image, size=size, valign=valign)
+                return
             image = Image.open(icon_path)
             enhancer = ImageEnhance.Brightness(image)
             image = enhancer.enhance(0.6)
@@ -229,6 +237,10 @@ class PlayPause(MediaAction):
         if status == None:
             if self.current_status == None:
                 self.current_status = "Playing"
+            idle_image = self.get_idle_icon()
+            if idle_image is not None:
+                self.set_media(image=idle_image, size=size, valign=valign)
+                return
             file_path = file[self.current_status]
             image = Image.open(file_path)
             enhancer = ImageEnhance.Brightness(image)
@@ -290,6 +302,10 @@ class Next(MediaAction):
 
         image = Image.open(os.path.join(self.plugin_base.PATH, "assets", "next.png"))
         if status == None:
+            idle_image = self.get_idle_icon()
+            if idle_image is not None:
+                self.set_media(image=idle_image, size=size, valign=valign)
+                return
             enhancer = ImageEnhance.Brightness(image)
             image = enhancer.enhance(0.6)
 
@@ -338,6 +354,10 @@ class Previous(MediaAction):
 
         image = Image.open(os.path.join(self.plugin_base.PATH, "assets", "previous.png"))
         if status == None:
+            idle_image = self.get_idle_icon()
+            if idle_image is not None:
+                self.set_media(image=idle_image, size=size, valign=valign)
+                return
             enhancer = ImageEnhance.Brightness(image)
             image = enhancer.enhance(0.6)
         
@@ -366,27 +386,47 @@ class Info(MediaAction):
         self.update_image()
 
     def update_image(self):
+        status = self.plugin_base.mc.status(self.get_player_name())
+        if isinstance(status, list):
+            status = status[0]
+
+        if status == None:
+            self.set_top_label("", font_size=12)
+            self.set_center_label("", font_size=12)
+            self.set_bottom_label("", font_size=12)
+            
+            idle_image = self.get_idle_icon()
+            if idle_image is not None:
+                self.set_media(image=idle_image)
+            else:
+                self.set_media(image=Image.new("RGBA", (256, 256), (255, 255, 255, 0)))
+            return
+
         title = self.plugin_base.mc.title(self.get_player_name())
         artist = self.plugin_base.mc.artist(self.get_player_name())
 
         if title is not None:
             title = self.shorten_label(title[0], 10)
-        if title is not None:
+        if artist is not None:
             artist = self.shorten_label(artist[0], 10)
 
         if self.get_settings() is None:
             return
 
-        self.set_top_label(str(title), font_size=12)
-        self.set_center_label(self.get_settings().get("seperator_text", "--"), font_size=12)
-        self.set_bottom_label(str(artist), font_size=12)
+        self.set_top_label(str(title) if title is not None else "", font_size=12)
+        self.set_center_label(self.get_settings().get("seperator_text", "--") if (title is not None or artist is not None) else "", font_size=12)
+        self.set_bottom_label(str(artist) if artist is not None else "", font_size=12)
 
         ## Thumbnail
         thumbnail = None
         if self.get_settings().setdefault("show_thumbnail", True):
             thumbnail = self.plugin_base.mc.thumbnail(self.get_player_name())
             if thumbnail == None:
-                thumbnail = Image.new("RGBA", (256, 256), (255, 255, 255, 0))
+                idle_image = self.get_idle_icon()
+                if idle_image is not None:
+                    thumbnail = idle_image
+                else:
+                    thumbnail = Image.new("RGBA", (256, 256), (255, 255, 255, 0))
             elif isinstance(thumbnail, list):
                 if thumbnail[0] == None:
                     return
@@ -832,6 +872,10 @@ class ThumbnailBackground(MediaAction):
         self.size_mode_selector.connect("notify::selected", self.on_change_size_mode)
         
         rows.append(self.size_mode_selector)  # type: ignore[arg-type]
+
+        if hasattr(self, "idle_icon_row") and self.idle_icon_row is not None:
+            rows.append(self.idle_icon_row)
+
         return rows
     
     def load_size_mode_default(self):
@@ -905,17 +949,21 @@ class ThumbnailBackground(MediaAction):
         
         if thumbnail_path is None:
             self.last_thumbnail_path = None
-            self.restore_original_background()
-            return
-        
-        # Load thumbnail image
-        try:
-            thumbnail = Image.open(thumbnail_path)
-        except (OSError, ValueError) as e:
-            log.error(f"Failed to load thumbnail image from {thumbnail_path}: {e}")
-            self.last_thumbnail_path = None
-            self.restore_original_background()
-            return
+            idle_image = self.get_idle_icon()
+            if idle_image is not None:
+                thumbnail = idle_image
+            else:
+                self.restore_original_background()
+                return
+        else:
+            # Load thumbnail image
+            try:
+                thumbnail = Image.open(thumbnail_path)
+            except (OSError, ValueError) as e:
+                log.error(f"Failed to load thumbnail image from {thumbnail_path}: {e}")
+                self.last_thumbnail_path = None
+                self.restore_original_background()
+                return
         
         # Track thumbnail path, background path, and position
         self.last_thumbnail_path = thumbnail_path
