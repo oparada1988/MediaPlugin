@@ -26,5 +26,6 @@
     "settings.log-level.subtitle": "Control the verbosity of plugin logging",
     "actions.media-action.idle-icon.label": "Idle Icon",
     "actions.media-action.idle-icon.subtitle": "Icon to show when no media is playing",
-    "actions.media-action.idle-icon.dialog-title": "Select Idle Icon"
+    "actions.media-action.idle-icon.dialog-title": "Select Idle Icon",
+    "actions.media-action.idle-icon.default-subtitle": "None"
 }
